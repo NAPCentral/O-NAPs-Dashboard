@@ -1,0 +1,671 @@
+---
+title: "NAP Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+     
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+```{r libraries-other}
+library(readxl)
+library(magrittr)
+library(dplyr)
+library(plotly)
+library(base)
+library(DT)
+library(ggplot2)
+library(scales)
+library(reshape)
+library(leaflet)
+library(tidyverse)
+library(rgee)
+library(raster)
+library(st)
+library(sf)
+library(dygraphs)
+library(lubridate)
+library(timeSeries)
+library(xts)
+library(wbstats)
+library(FAOSTAT)
+
+```
+
+
+```{r excel-data, include=FALSE}
+country_codes_un <- read_excel("Open_NAPs_Database.xlsm",sheet = "country_codes_un")
+regions <- read_excel("Open_NAPs_Database.xlsm", sheet = "UNCTAD_Regions")
+nap_outputs <- read_excel("Open_NAPs_Database.xlsm",sheet = "nap_output_docs")
+Readiness<- read_excel("Open_NAPs_Database.xlsm",sheet = "Readiness")
+GEF <- read_excel("Open_NAPs_Database.xlsm",sheet = "GEF")%>%na.omit()
+GCF <- read_excel("Open_NAPs_Database.xlsm",sheet = "GCF")%>%na.omit(GCF)
+NAPS <- read_excel("Open_NAPs_Database.xlsm",sheet = "Submitted_NAPs")
+latlong <- read_excel("Open_NAPs_Database.xlsm",sheet = "countrylatlong")
+NAPATbl <- read_excel("Open_NAPs_Database.xlsm",sheet = "project_database")
+policy_db<-read_excel("Open_NAPs_Database.xlsm",sheet = "Policy_db")
+Measures<-read_excel("Open_NAPs_Database.xlsm",sheet = "Measures")
+```
+
+
+```{r merge-tables, include=FALSE}
+
+unregions<-merge(country_codes_un, regions, by='countryname', all.x=TRUE)
+napcountry_outputs<-merge(country_codes_un,nap_outputs, by="country-code")
+GEF_Projects<-merge(unregions,GEF, by="countryname", all.y = TRUE)
+GCF_Projects<-merge(unregions,GCF, by="countryname", all.y = TRUE)
+Country_Readiness<-merge(unregions,Readiness, by="countryname", all.y = TRUE)
+NAPCountries<-merge(unregions,NAPS, by="countryname", all.y = TRUE)
+xycountrycode<-merge(unregions,latlong, by='countryname', all.x = TRUE)
+NAP_Countries<-merge(NAPS,xycountrycode, by="countryname", all.x = TRUE)
+NAPA<-merge(NAPATbl,xycountrycode, by="countryname", all.x = TRUE)
+policy<-merge(policy_db,country_codes_un, by="country-code", all.y=TRUE)
+
+```
+
+
+```{r summary,include=FALSE}
+
+GCF_Core <- as.data.frame(GCF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
+  summarise("Total GCF Funding"=sum(`Total GCF Funding`))#%>%
+      #tidyr::pivot_wider(names_from = "countryname", values_from ="Total GCF Funding")
+GCF_Co_Finance <- as.data.frame(GCF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
+  summarise("Total Co-Financing"=sum(`Total Co-Financing`))
+GEF_Grant <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
+  summarise("Grant"=sum(`Grant`))
+GEF_Co_Finance <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
+  summarise("Total Co-Financing"=sum(`Co-Financing`))
+Readiness_df <- as.data.frame(Country_Readiness)%>% group_by(Region, `Sub_Region`,`countryname`,`Grant Agreement Type`,Activity,`Duration Approved`)%>%   summarise("Amount Approved"=sum(`Amount Approved`),"Amount Disbursed"=sum(`Amount Disbursed`) )
+NAPA_df <- as.data.frame(NAPA)%>% group_by(Region, `Sub_Region`,`countryname`,Fund,status)%>%   summarise("Amount Approved"=sum(Amount) )
+NAPA_red<-NAPA_df[-90,]
+```
+
+```{r edit-summary}
+#rename some columns
+colnames(GCF_Core)[colnames(GCF_Core)=="Total GCF Funding"]<-"Amount"
+colnames(GEF_Grant)[colnames(GEF_Grant)=="Grant"]<-"Amount"
+colnames(NAPA_df)[colnames(NAPA_df)=="Amount Approved"]<-"Amount"
+
+#add colunm 'Fund' to dfs
+GEF_Grant$Fund<-'GEF'
+GCF_Core$Fund<-'GCF'
+
+#delete 1 column 'status' from napa df
+NAPA_New<-NAPA_df[,-5]
+
+# combine all 3 dfs with rbind
+NAP_Fund<-rbind(NAPA_New,GCF_Core,GEF_Grant)
+```
+
+Funding Overview
+=======================================================================
+Column { data-width=50 }
+-----------------------------------------------------------------------
+### GCF {.value-box}
+
+-----------------------------------------------------------------------
+
+
+
+```{r}
+gcf_total<-sum(GCF_Core$Amount)
+
+valueBox(value = prettyNum(format(gcf_total,big.mark = ","), "", sep = ","),
+         caption = "Total GCF Funding", 
+         icon = "logo-usd", 
+         color = "brown")
+```
+
+
+### GEF {.value-box} 
+
+
+```{r}
+gef_total<-sum(GEF_Grant$Amount)
+
+valueBox(value = prettyNum(format(gef_total,big.mark = ","), "", sep = ","),
+         caption = "Total GEF Funding", 
+         icon = "logo-usd", 
+         color = "orange")
+```
+
+### NAPA {.value-box} 
+
+
+```{r}
+NAPA_total<-sum(NAPA_New$Amount)
+
+valueBox(value = prettyNum(format(NAPA_total,big.mark = ","), "", sep = ","),
+         caption = "Total NAPA Funding", 
+         icon = "logo-usd", 
+         color = "gray")
+```
+
+### NAPs {.value-box} 
+
+```{r}
+naps_total<-count(NAPS)
+
+valueBox(naps_total,
+         caption = "NAPs Submitted", 
+         icon = "document-text-outline", 
+         color = "green")
+```
+
+Column { data-width=250 }
+-----------------------------------------------------------------------
+
+### GCF
+
+```{r}
+
+#ggplot(data = GCF_Core, aes(fill=countryname, area=`Total GCF Funding`, label = paste(countryname,"\n",prettyNum(`Total GCF Funding`, big.mark = ","))))+
+  #geom_treemap()+geom_treemap_text(colour='black', place='centre')+
+  #labs(subtitle = 'GCF Projects Funding by Country')+theme(legend.position = 'none')
+
+plot_ly(
+  data = GCF_Core,
+  type= "treemap",
+  values = ~Amount,
+  labels= ~countryname,
+  parents= ~Fund,
+  name = "GCF Funding",
+  textinfo="label+value+percent parent")
+
+
+```
+
+### GEF
+
+```{r}
+#ggplot(data = subset(GEF_Grant,`Grant`>50000000), aes(fill=countryname, area=Grant, label = paste(countryname,"\n",prettyNum(Grant, big.mark = ","))))+
+ # geom_treemap()+
+  #geom_treemap_text(colour='black', place='centre')+
+  #labs(subtitle = 'GEF Project Grants by Country')+
+  #theme(legend.position = 'none')
+
+plot_ly(
+  data = GEF_Grant,
+  type= "treemap",
+  values = ~Amount,
+  labels= ~ countryname,
+  parents=  ~Fund,
+  name = "GEF Funding",
+  textinfo="label+value+percent parent")
+ 
+```
+
+-----------------------------------------------------------------------
+
+### NAPA
+```{r echo=FALSE}
+#ggplot(data = NAPA_df, aes(fill=countryname, area=NAPA_df$`Amount Approved`, label = paste(countryname,"\n",prettyNum(`Amount Approved`, big.mark = ","))))+
+  #geom_treemap()+
+ # geom_treemap_text(colour='black', place='centre')+
+ # labs(subtitle = 'NAPA Funding by Country')+
+  #theme(legend.position = 'none')
+
+plotly::plot_ly(
+  data = NAPA_New%>%dplyr::filter(Fund=='LDCF'),
+  type= "treemap",
+  values = ~Amount,
+  labels= ~ countryname,
+  parents=  ~Fund,
+  name = "LDCF",
+  textinfo="label+value+percent parents")%>%
+  
+  plotly::add_trace(
+    data = NAPA_New%>%dplyr::filter(Fund=='GEF Trust Fund'|Fund=='Multi TrustFunds'),
+    type= "treemap",
+    values = ~Amount,
+    labels= ~ countryname,
+    parents=  ~Fund,
+    name = "Other NAPA Funding",
+    textinfo="label+value+percent parents")
+  
+```
+
+Funding Overview: Alternative Layout
+========================================================================
+{.tabset }
+-----------------------------------------------------
+### GCF
+
+```{r}
+
+#ggplot(data = GCF_Core, aes(fill=countryname, area=`Total GCF Funding`, label = paste(countryname,"\n",prettyNum(`Total GCF Funding`, big.mark = ","))))+
+  #geom_treemap()+geom_treemap_text(colour='black', place='centre')+
+  #labs(subtitle = 'GCF Projects Funding by Country')+theme(legend.position = 'none')
+
+plot_ly(
+  data = GCF_Core,
+  type= "treemap",
+  values = ~Amount,
+  labels= ~countryname,
+  parents= ~Fund,
+  name = "GCF Funding",
+  textinfo="label+value+percent parent")
+
+```
+
+### GEF
+
+```{r}
+#ggplot(data = subset(GEF_Grant,`Grant`>50000000), aes(fill=countryname, area=Grant, label = paste(countryname,"\n",prettyNum(Grant, big.mark = ","))))+
+ # geom_treemap()+
+  #geom_treemap_text(colour='black', place='centre')+
+  #labs(subtitle = 'GEF Project Grants by Country')+
+  #theme(legend.position = 'none')
+
+plot_ly(
+  data = GEF_Grant,
+  type= "treemap",
+  values = ~Amount,
+  labels= ~ countryname,
+  parents=  ~Fund,
+  name = "GEF Funding",
+  textinfo="label+value+percent parent")
+ 
+```
+
+### NAPA
+
+```{r echo=FALSE}
+#ggplot(data = NAPA_df, aes(fill=countryname, area=NAPA_df$`Amount Approved`, label = paste(countryname,"\n",prettyNum(`Amount Approved`, big.mark = ","))))+
+  #geom_treemap()+
+ # geom_treemap_text(colour='black', place='centre')+
+ # labs(subtitle = 'NAPA Funding by Country')+
+  #theme(legend.position = 'none')
+
+plotly::plot_ly(
+  data = NAPA_New%>%dplyr::filter(Fund=='LDCF'),
+  type= "treemap",
+  values = ~Amount,
+  labels= ~ countryname,
+  parents=  ~Fund,
+   
+  name = "NAPA Funding",
+  textinfo="label+value+percent parents")%>%
+  
+  plotly::add_trace(
+    data = NAPA_New%>%dplyr::filter(Fund=='GEF Trust Fund'|Fund=='Multi TrustFunds'),
+    type= "treemap",
+    values = ~Amount,
+    labels= ~ countryname,
+    parents=  ~Fund,
+    name = "Other Funding",
+    textinfo="label+value+percent parents")
+  
+```
+
+Readiness
+========================================================================
+
+### Projects by Region
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+proj<-Country_Readiness %>% group_by(Region)%>%count(`Request ID`)
+
+ proj%>% summarise("Projects"=sum(n))%>%
+  plot_ly(type = "bar", 
+          x =~Projects, 
+          y =~Region)
+```
+
+### Amount Approved by Country
+
+```{r,echo=FALSE}
+
+#Element_short<-paste(substr(mdf$Element,1,1),':-')
+
+Readiness_df%>%arrange()%>%
+   plot_ly(type = "bar", 
+          x = Readiness_df$`Amount Approved`, 
+          y = paste(substr(Readiness_df$countryname,1,20),'...'),
+          name='Amount Approved')%>%
+  
+  add_trace(x=Readiness_df$`Amount Disbursed`, 
+            name='Amount Disbursed'
+
+                   )
+```
+
+
+Outputs
+========================================================================
+{.tabset .tabset-fade}
+-------------------------------------
+### NAP Outputs
+
+```{r, echo=FALSE, warning=FALSE,message=FALSE}
+napcountry_outputs$Doctitle<-paste('<a href=',napcountry_outputs$weblink, '>',napcountry_outputs$Doctitle,'</a>', sep = "")
+#datatable(napcountry_outputs[,c(2,5,7,12)], escape = F)
+
+y<-napcountry_outputs[,c(2,5,7,12)]
+datatable(y,escape = FALSE, filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "NAP Output Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')))%>%
+  DT::formatStyle(columns = colnames(y),fontSize= '12px')
+
+```
+
+### Policies
+
+```{r, echo=FALSE, warning=FALSE,message=FALSE}
+
+policy$Title<-paste('<a href=',policy$Link, '>',policy$Title,'</a>', sep = "")
+
+p<-policy[,c(3,5,7,8)]%>%na.omit()
+datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "Policy Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')), escape = F)%>%
+  DT::formatStyle(columns = colnames(p),fontSize= '12px')
+
+```
+
+### Measures to formulate NAPS
+
+```{R}
+
+mdf<-as.data.frame(Measures)%>%reshape::melt(id.vars=c('Measures', 'Element'))
+#Element_short<-paste(substr(mdf$Element,1,1),':-')
+
+mplot<- ggplot(mdf, aes(x = paste(paste(substr(Element,1,1),':-'),(substr(Measures, 1,40)), '...') , y = value, fill = variable)) + 
+    geom_bar(stat = 'identity',position="stack") + 
+    ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
+    xlab('Measure') + 
+    ylab('No. of countries') + 
+    coord_flip() + 
+     theme_classic()
+plotly::ggplotly(mplot)
+
+```
+
+Maps 
+========================================================================
+ {.tabset .tabset-fade}
+-------------------------------------
+### Countries with Submitted NAPs
+
+```{r,echo=FALSE}
+
+NAP_Countries$`Document title`<-paste('<a href=',NAP_Countries$Link, '>',NAP_Countries$`Document title`,'</a>', sep = "")
+
+NAP_Countries<-NAP_Countries%>%
+   mutate(popup_info=paste(countryname,"<br>","Submitted on:",NAP_Countries$`Date of submission`,"<br>","Title:",NAP_Countries$`Document title`))
+
+leaflet(NAP_Countries)%>%
+  addTiles()%>%
+  addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
+ 
+```
+
+### Land Cover
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+
+ee_Initialize()
+
+admin0<-ee$FeatureCollection("FAO/GAUL/2015/level2")
+malawi<- admin0$filter(ee$Filter$eq('ADM0_NAME', 'Malawi'))
+
+createTimeBand <-function(img) {
+  year <- ee$Date(img$get('system:time_start'))$get('year')$subtract(2001)
+  ee$Image(year)$byte()$addBands(img)}
+
+faolc <- ee$ImageCollection("MODIS/006/MCD12Q1")$select('LC_Prop1')$filterBounds(malawi$geometry())$ map(createTimeBand)
+
+lc_reduce <- faolc$reduce(ee$Reducer$linearFit())
+lc_reduce <- lc_reduce$addBands(
+  lc_reduce$select('offset'))
+
+malawi_lc<-lc_reduce$clip(malawi)
+
+Map$setCenter(33.820231,-13.514770, 6)
+Map$addLayer(
+  eeObject = malawi_lc,
+  visParams = list(
+    bands = c("scale", "offset", "scale"),
+    min = 0,
+    max = c(0.18,20,0.18)),
+  name = "Malawi Landcover", legend = TRUE)+
+  Map$addLayer(malawi,{},'Malawi Districts',opacity = 0.3, TRUE)
+
+```
+
+Climate {data-orientation=columns}
+========================================================================
+
+ {.tabset .tabset-fade}
+-------------------------------------
+Climate data trends for Africa. Data set: [Terraclimate](https://developers.google.com/earth-engine/datasets/catalog/IDAHO_EPSCOR_TERRACLIMATE)  
+_In case graph is not previewed automatically, click inside graph to view_
+
+```{r, include=FALSE,echo=FALSE}
+
+ee_Initialize()
+Tmax<-ee$ImageCollection("IDAHO_EPSCOR/TERRACLIMATE")$
+  select('tmmx')
+
+library(sf)
+Africa_Trace<-read_sf("C:/Workspace/RMardown_NAPS/Open-NAPs-Data/opennaps/Africa_Trace.shp")  
+#need to reconfigure this path to your workspace
+
+TmaxAfrica<-ee_extract(x=Tmax, y=Africa_Trace, fun=ee$Reducer$mean())
+
+Tmaxlong<-pivot_longer(TmaxAfrica,everything(),names_to = 'month',values_to = 'tmax')
+Date<-seq(as.Date('1958-01-01'), by="month", length.out=757)
+Tmaxlong$Date<-Date
+ 
+
+tmax_ann<-Tmaxlong%>%mutate(year=year(Date), month=month(Date))%>%
+  group_by(year)%>%  summarise(tmax=sum(tmax))
+
+tmax_ts<-xts(Tmaxlong$tmax,Tmaxlong$Date)
+```
+
+
+### Temperature - Monthly
+
+```{r}
+dygraph(tmax_ts, main = "Monthly Temperature Time Series") %>% 
+  dyRangeSelector(dateWindow = c("1958-01-01", "2020-12-01"))
+```
+
+
+### Temperature - Annual 
+
+```{r}
+dygraph(tmax_ann, main = "Annual Temperature Time Series") %>% 
+  dyRangeSelector(dateWindow = c("1958-01-01", "2020-12-01"))
+```
+
+-------------------------------------
+
+```{r echo=FALSE, include=FALSE}
+
+ee_Initialize()
+pr<-ee$ImageCollection("IDAHO_EPSCOR/TERRACLIMATE")$select('pr')
+
+
+Africa_Trace<-read_sf("C:/Workspace/RMardown_NAPS/Open-NAPs-Data/opennaps/Africa_Trace.shp")
+
+prAfrica<-ee_extract(x=pr, y=Africa_Trace, fun=ee$Reducer$mean())
+
+
+prlong<-pivot_longer(prAfrica,everything(),names_to = 'month',values_to = 'pr')
+ Date<-seq(as.Date('1958-01-01'), by="month", length.out=757)
+prlong$Date<-Date 
+
+
+pr_ann<-prlong%>%mutate(year=year(Date), month=month(Date))%>%
+  group_by(year)%>%
+  summarise(pr=sum(pr))
+
+pr_ts<-xts(prlong$pr,prlong$Date)
+```
+
+
+### Precipitation - Monthly
+```{r}
+dygraph(pr_ts, main = "Monthly Time Series") %>% 
+  dyRangeSelector(dateWindow = c("1958-01-01", "2020-12-01"))
+```
+
+
+### Precipitation - Annual
+
+```{r}
+dygraph(pr_ann, main = "Annual Time Series") %>% 
+  dyRangeSelector(dateWindow = c("1958-01-01", "2020-12-01"))
+```
+
+ {.tabset }
+--------------------------------------------------------------
+Global Emission Trends. Data set: [WorldBank](https://data.worldbank.org/indicator)
+
+### Co2 Emissions
+
+```{r}
+ind<-wb_indicators()
+co2<-wb_data("EN.ATM.CO2E.KT",return_wide = FALSE)
+wbplot<- ggplot2::ggplot(co2,aes(x=date, y=value, color=country))+
+  ggtitle('Co2 Emissions')+
+  xlab('Time')+ylab('value (kt)')+
+  geom_line()+
+  theme(legend.position = "none")
+plotly::ggplotly(wbplot)
+```
+
+### GHG Emissions
+
+```{r}
+GHG<-wb_data("EN.ATM.GHGT.KT.CE",return_wide = FALSE,start_date = 1970,end_date = 2012)
+wbplot<- ggplot2::ggplot(GHG,aes(x=date, y=value, color=country))+
+  ggtitle('GHG Emissions- kt of CO2 equivalent')+
+  xlab('Time')+ylab('value')+
+  geom_line()+
+  theme(legend.position="none")
+plotly::ggplotly(wbplot)
+```
+
+### Emmissions per ppp$GDP
+
+```{r}
+co2pppgdp<-wb_data("EN.ATM.CO2E.PP.GD",return_wide = FALSE,start_date = 1990,end_date = 2016)
+wbplot<- ggplot2::ggplot(co2pppgdp,aes(x=date, y=value, color=country))+
+  ggtitle('CO2 emissions (kg per PPP $ of GDP)')+
+  xlab('Time')+ylab('value (kg)')+
+  geom_line()+
+  theme(legend.position = "none")
+plotly::ggplotly(wbplot)
+```
+
+### Emmissions (metric tons per capita)
+
+```{r}
+
+co2mtcapita<-wb_data("EN.ATM.CO2E.PC",return_wide = FALSE,start_date = 1960,end_date = 2016)
+wbplot<- ggplot2::ggplot(co2mtcapita,aes(x=date, y=value, color=country))+
+  ggtitle('CO2 emissions (metric tons per capita)')+
+  xlab('Time')+ylab('value (metric tons)')+
+  geom_line()+
+  theme(legend.position = "none")
+plotly::ggplotly(wbplot)
+```
+
+Agriculture {data-orientation=rows}
+========================================================================
+Agricultural Productivity for selected crops. 
+Data source: [FAOSTAT](http://www.fao.org/faostat/en/#data) 
+
+```{r, echo=FALSE}
+data_folder <- "FAOSTATs"
+dir.create(data_folder)
+production_crops <- get_faostat_bulk(code = "QC", data_folder = data_folder)
+#saveRDS(production_crops, "FAOSTATs/production_crops_e_all_data.rds")
+#production_crops <- readRDS("FAOSTATs/production_crops_e_all_data.rds")
+```
+Row 
+--------------------------------------------------------------------------
+### Crop Yield
+
+```{r, echo=FALSE}
+
+selectcrops<-production_crops%>% na.omit()%>%group_by(item,element,year)%>%
+  summarise(value=sum(value))%>%
+  dplyr::filter(element=="Yield")%>%dplyr::filter(item=="Maize" | item=="Yams" |item=="Apples"|item=="Avocados"|item=="Bananas"|item=="Barley"|item=="Beans,green"|item=="Beans,dry"|item=="Cassava"|item=="Cereals,Total"|item=="Dates"|item=="Onions, dry"|item=="Lentils"|item=="Millet"|item=="Oats"|item=="Olives"|item=="Oil palm fruit"|item=="Potoatoes"|item=="Pulses,Total"|item=="Rice,paddy"|item=="Sorghum"|item=="Soybeans"|item=="Tea"|item=="Tomatoes"|item=="Vegetables Primary"|item=="Wheat")
+
+xcrop<- ggplot2::ggplot(selectcrops,aes(x=year, y=value, color=item))+
+  ggtitle('Global Crop Yield - Annual Trends')+
+  xlab('Time')+ylab('Yield (hg/ha)')+
+  geom_line()+ 
+  theme_minimal()
+plotly::ggplotly(xcrop)
+```
+
+### Total Crop Production
+
+```{r}
+
+production<-production_crops%>% na.omit()%>%group_by(item,element,year)%>%
+  summarise(value=sum(value))%>%
+  dplyr::filter(element=="Production")%>%dplyr::filter(item=="Maize" | item=="Yams" |item=="Apples"|item=="Avocados"|item=="Bananas"|item=="Barley"|item=="Beans,green"|item=="Beans,dry"|item=="Cassava"|item=="Cereals,Total"|item=="Dates"|item=="Onions, dry"|item=="Lentils"|item=="Millet"|item=="Oats"|item=="Olives"|item=="Oil palm fruit"|item=="Potoatoes"|item=="Pulses,Total"|item=="Rice,paddy"|item=="Sorghum"|item=="Soybeans"|item=="Tea"|item=="Tomatoes"|item=="Vegetables Primary"|item=="Wheat")
+
+
+xprod<- ggplot2::ggplot(production,aes(x=year, y=value, color=item))+
+  ggtitle('Global Crop Production - Annual Trends')+
+  xlab('Time')+ylab('Tonnes')+
+  geom_line()+ 
+  theme_minimal()
+plotly::ggplotly(xprod)
+```
+
+Row
+-----------------------------------------------------------------
+### Area harvested
+
+```{r}
+
+Area_harvested<-production_crops%>%na.omit()%>% group_by(item,element,year)%>%
+  summarise(value=sum(value))%>%
+  dplyr::filter(element=="Area harvested")%>%dplyr::filter(item=="Maize" | item=="Yams" |item=="Apples"|item=="Avocados"|item=="Bananas"|item=="Barley"|item=="Beans,green"|item=="Beans,dry"|item=="Cassava"|item=="Cereals,Total"|item=="Dates"|item=="Onions, dry"|item=="Lentils"|item=="Millet"|item=="Oats"|item=="Olives"|item=="Oil palm fruit"|item=="Potoatoes"|item=="Pulses,Total"|item=="Rice,paddy"|item=="Sorghum"|item=="Soybeans"|item=="Tea"|item=="Tomatoes"|item=="Vegetables Primary"|item=="Wheat")
+
+area<- ggplot2::ggplot(Area_harvested,aes(x=year, y=value, color=item))+
+  ggtitle('Annual Global Crop Trends - Area Harvested')+
+  xlab('Time')+ylab('Area harvested (ha)')+
+  geom_line()+ 
+  theme_minimal()
+plotly::ggplotly(area)
+```
+
+### Maize Crop Production
+
+```{r, echo=FALSE}
+
+Maize<-production_crops%>% na.omit()%>%group_by(item,element,year)%>%
+  summarise(value=sum(value))%>%
+  dplyr::filter(item=="Maize")
+
+Maizecrop<- ggplot2::ggplot(Maize,aes(x=year, y=value, color=element))+
+  ggtitle('Global Maize Production Trends')+
+  xlab('Time')+ylab('value')+
+  geom_line()+ 
+  theme_minimal()
+plotly::ggplotly(Maizecrop)
+```
+
+About
+========================================================================
+
+
+_The Open NAPs Dashboard_
+
+Open NAPs are National Adaptation Plans for developing countries being developed through an open collaboration involving a wide range of actors, designed to support countries develop the best possible adaptation plans along the guidelines established by the UNFCCC Conference of Parties, and further elaborated through technical guidelines led by the LDC Expert Group (LEG), with continuing extension through supplements developed by a wide range of organizations.
+
+The Open NAP initiative is moderated by the LEG under the UNFCCC. For more information about the work of the LEG, visit [here](https://unfccc.int/LEG)
+
+For more information about the National Adaptation Plans, [browse here](https://napcentral.netlify.app/open-naps/)
+
+For any questions or feedback, [write to us](opennaps@naps.org)
