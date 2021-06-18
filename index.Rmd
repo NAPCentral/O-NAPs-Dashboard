@@ -440,7 +440,7 @@ Climate {data-orientation=columns}
  {.tabset .tabset-fade}
 -------------------------------------
 Climate data trends for Africa. Data set: [Terraclimate](https://developers.google.com/earth-engine/datasets/catalog/IDAHO_EPSCOR_TERRACLIMATE)  
-_In case graph is not previewed automatically, click inside graph to view_
+_In case graph is not previewed automatically, double-click inside graph to view_
 
 ```{r, include=FALSE,echo=FALSE}
 
