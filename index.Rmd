@@ -346,6 +346,9 @@ Outputs
 napcountry_outputs$Doctitle<-paste('<a href=',napcountry_outputs$weblink, '>',napcountry_outputs$Doctitle,'</a>', sep = "")
 #datatable(napcountry_outputs[,c(2,5,7,12)], escape = F)
 
+colnames(napcountry_outputs)[colnames(napcountry_outputs)=='countryname']<-'Country'
+colnames(napcountry_outputs)[colnames(napcountry_outputs)=='Doctitle']<-'Document Title'
+
 y<-napcountry_outputs[,c(2,5,7,12)]
 datatable(y,escape = FALSE, filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "NAP Output Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')))%>%
   DT::formatStyle(columns = colnames(y),fontSize= '12px')
@@ -357,6 +360,8 @@ datatable(y,escape = FALSE, filter = 'top',fillContainer = T,rownames = F, edita
 ```{r, echo=FALSE, warning=FALSE,message=FALSE}
 
 policy$Title<-paste('<a href=',policy$Link, '>',policy$Title,'</a>', sep = "")
+
+colnames(policy)[colnames(policy)=='countryname']<-'Country'
 
 p<-policy[,c(3,5,7,8)]%>%na.omit()
 datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "Policy Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')), escape = F)%>%
