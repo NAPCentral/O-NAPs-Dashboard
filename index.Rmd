@@ -371,7 +371,9 @@ datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style =
 mdf<-as.data.frame(Measures)%>%reshape::melt(id.vars=c('Measures', 'Element'))
 #Element_short<-paste(substr(mdf$Element,1,1),':-')
 
-mplot<- ggplot(mdf, aes(x = paste(paste(substr(Element,1,1),':-'),(substr(Measures, 1,40)), '...') , y = value, fill = variable)) + 
+mdf$Measure<-factor(mdf$Measures,levels = c('Initiating and/or launching the process','Submitting proposals to the GCF Readiness..','Receiving approval from the GCF Readiness..','Formulating a mandate for the process','Defining institutional arrangements and a coor..','Consulting stakeholders for input and validation','Synthesizing available adaptation information..','Developing a road map for the process','Publishing the road map for the process','Analysing past climate data and scenarios..','Comprehensively assessing climate vulnerability','Undertaking activities on integrating adaptation ..','Identifying adaptation options to address key vulnerabilities','Appraising, prioritizing and ranking adaptation options','Compiling draft NAPs for consultation and endorsement','Publishing NAPs and submitting them to NAP Central','Prioritizing climate change adaptation in national planning','Designing coherent NAP implementation str..','Implementing and managing actions in NAPs to..','Designing and applying a monitoring and evaluation ..','Communicating progress on NAPs','Monitoring and periodically reviewing the process','Iteratively updating NAPs'))
+
+mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
     geom_bar(stat = 'identity',position="stack") + 
     ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
     xlab('Measure') + 
