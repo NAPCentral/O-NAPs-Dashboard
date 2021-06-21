@@ -7,7 +7,7 @@ output:
      
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, message=FALSE,warning=FALSE}
 library(flexdashboard)
 ```
 
@@ -376,7 +376,7 @@ datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style =
 mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
 #Element_short<-paste(substr(mdf$Element,1,1),':-')
 
-mdf$Measure<-factor(mdf$Measure,levels = c('Initiating and/or launching the process','Submitting proposals to the GCF Readiness and','Receiving approval from the GCF Readiness and','Formulating a mandate for the process','Defining institutional arrangements and a coo','Consulting stakeholders for input and validat','Synthesizing available adaptation information','Developing a road map for the process','Publishing the road map for the process','Analysing past climate data and scenarios of','Comprehensively assessing climate vulnerabili','Undertaking activities on integrating adaptat','Identifying adaptation options to address key','Appraising, prioritizing and ranking adaptati','Compiling draft NAPs for consultation and end','Publishing NAPs and submitting them to NAP Ce','Prioritizing climate change adaptation in nat','Designing coherent NAP implementation strateg','Implementing and managing actions in NAPs to','Designing and applying a monitoring and evalu','Communicating progress on NAPs','Monitoring and periodically reviewing the pro','Iteratively updating NAPs'))
+mdf$Measure<-factor(mdf$Measure,levels = c('A:-Initiating and/or launching the process','A:-Submitting proposals to the GCF Readiness and','A:-Receiving approval from the GCF Readiness and','A:-Formulating a mandate for the process','A:-Defining institutional arrangements and a coo','A:-Consulting stakeholders for input and validat','A:-Synthesizing available adaptation information','A:-Developing a road map for the process','A:-Publishing the road map for the process','B:-Analysing past climate data and scenarios of','B:-Comprehensively assessing climate vulnerabili','B:-Undertaking activities on integrating adaptat','B:-Identifying adaptation options to address key','B:-Appraising, prioritizing and ranking adaptati','B:-Compiling draft NAPs for consultation and end','B:-Publishing NAPs and submitting them to NAP Ce','C:-Prioritizing climate change adaptation in nat','C:-Designing coherent NAP implementation strateg','C:-Implementing and managing actions in NAPs to','D:-Designing and applying a monitoring and evalu','D:-Communicating progress on NAPs','D:-Monitoring and periodically reviewing the pro','D:-Iteratively updating NAPs'))
 
 mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
     geom_bar(stat = 'identity',position="stack") + 
