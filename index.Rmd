@@ -69,6 +69,7 @@ NAPA<-merge(NAPATbl,xycountrycode, by="countryname", all.x = TRUE)
 policy<-merge(policy_db,country_codes_un, by="country-code", all.y=TRUE)
 Country_Readiness<-merge(Readiness, xycountrycode, by="countryname", all.x = TRUE)
 GCF_Readiness<-merge(Country_Readiness, readiness_approval, by='countryname', all.x=TRUE)
+GCF_Readiness<-as.data.frame(GCF_Readiness, stringsAsFactors = FALSE)
 
 ```
 
@@ -235,12 +236,16 @@ leaflet()%>%addTiles()%>%addCircleMarkers(fill = T, lat = ~lat, lng = ~lon, colo
  
  
 ```{r}
+
 library(stringr)
-GCF_Readiness%>%dplyr::filter(Activity=='Adaptation Planning (AP)')%>%
+del_p<-GCF_Readiness%>%dplyr::filter(Activity=='Adaptation Planning (AP)')%>%
   group_by(`Delivery Partner`)%>%count('Request ID')%>%
-  summarise("Projects"=sum(n))%>%
-  
-  plot_ly(type = 'bar',
+  summarise("Projects"=sum(n))
+
+del_p$`Delivery Partner` <- factor(del_p$`Delivery Partner`, levels = unique(del_p$`Delivery Partner`)[order(del_p$Projects, decreasing = TRUE)])
+
+  plot_ly(data = del_p,
+    type = 'bar',
           x=~Projects,
           y=~`Delivery Partner`
          
@@ -255,9 +260,13 @@ Row
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>%group_by(Region)%>%count(`Request ID`)%>%
-summarise("Projects"=sum(n))%>%
-  plot_ly(type = "bar", 
+geo<-GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>%group_by(Region)%>%count(`Request ID`)%>%
+summarise("Projects"=sum(n))
+
+geo$Region <- factor(geo$Region, levels = unique(geo$Region)[order(geo$Projects, decreasing = TRUE)])
+ 
+ plot_ly(data=geo,
+   type = "bar", 
           x =~Projects, 
           y =~Region)
 
@@ -267,9 +276,13 @@ summarise("Projects"=sum(n))%>%
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>% group_by(Category)%>%count(`Request ID`)%>%
-summarise("Projects"=sum(n))%>%
-  plot_ly(type = "bar", 
+cat<-GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>% group_by(Category)%>%count(`Request ID`)%>%
+summarise("Projects"=sum(n))
+
+cat$Category <- factor(cat$Category, levels = unique(cat$Category)[order(cat$Projects, decreasing = TRUE)])
+
+  plot_ly(data=cat,
+    type = "bar", 
           x =~Projects, 
           y=~Category)
 ```
@@ -364,29 +377,6 @@ Outputs
 {.tabset .tabset-fade}
 -------------------------------------
 
-### Measures to formulate NAPS
-
-```{r}
-
-mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
-
-#Element_short<-paste(substr(mdf$Element,1,1),':-')
-
-mdf$Measure<-factor(mdf$Measure,levels = c('D:-Iteratively updating NAPs','D:-Monitoring and periodically reviewing the pro','D:-Communicating progress on NAPs','D:-Designing and applying a monitoring and evalu','C:-Implementing and managing actions in NAPs to','C:-Designing coherent NAP implementation strateg','C:-Prioritizing climate change adaptation in nat','B:-Publishing NAPs and submitting them to NAP Ce','B:-Compiling draft NAPs for consultation and end','B:-Appraising, prioritizing and ranking adaptati','B:-Identifying adaptation options to address key','B:-Undertaking activities on integrating adaptat','B:-Comprehensively assessing climate vulnerabili','B:-Analysing past climate data and scenarios of','A:-Publishing the road map for the process','A:-Developing a road map for the process','A:-Synthesizing available adaptation information','A:-Consulting stakeholders for input and validat','A:-Defining institutional arrangements and a coo','A:-Formulating a mandate for the process','A:-Receiving approval from the GCF Readiness and','A:-Submitting proposals to the GCF Readiness and','A:-Initiating and/or launching the process'
-
-))
-
-mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
-    geom_bar(stat = 'identity',position="stack") + 
-    ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
-    xlab('Measure') + 
-    ylab('No. of countries') + 
-    coord_flip() + 
-     theme_classic()
-plotly::ggplotly(mplot)
-
-```
-
 ### NAP Outputs
 
 ```{r, echo=FALSE, warning=FALSE,message=FALSE}
@@ -413,6 +403,29 @@ colnames(policy)[colnames(policy)=='countryname']<-'Country'
 p<-policy[,c(3,5,7,8)]%>%na.omit()
 datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "Policy Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')), escape = F)%>%
   DT::formatStyle(columns = colnames(p),fontSize= '12px')
+
+```
+
+### Measures to formulate NAPS
+
+```{r}
+
+mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
+
+#Element_short<-paste(substr(mdf$Element,1,1),':-')
+
+mdf$Measure<-factor(mdf$Measure,levels = c('D:-Iteratively updating NAPs','D:-Monitoring and periodically reviewing the pro','D:-Communicating progress on NAPs','D:-Designing and applying a monitoring and evalu','C:-Implementing and managing actions in NAPs to','C:-Designing coherent NAP implementation strateg','C:-Prioritizing climate change adaptation in nat','B:-Publishing NAPs and submitting them to NAP Ce','B:-Compiling draft NAPs for consultation and end','B:-Appraising, prioritizing and ranking adaptati','B:-Identifying adaptation options to address key','B:-Undertaking activities on integrating adaptat','B:-Comprehensively assessing climate vulnerabili','B:-Analysing past climate data and scenarios of','A:-Publishing the road map for the process','A:-Developing a road map for the process','A:-Synthesizing available adaptation information','A:-Consulting stakeholders for input and validat','A:-Defining institutional arrangements and a coo','A:-Formulating a mandate for the process','A:-Receiving approval from the GCF Readiness and','A:-Submitting proposals to the GCF Readiness and','A:-Initiating and/or launching the process'
+
+))
+
+mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
+    geom_bar(stat = 'identity',position="stack") + 
+    ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
+    xlab('Measure') + 
+    ylab('No. of countries') + 
+    coord_flip() + 
+     theme_classic()
+plotly::ggplotly(mplot)
 
 ```
 
