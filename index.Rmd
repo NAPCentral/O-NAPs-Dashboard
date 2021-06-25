@@ -49,21 +49,26 @@ latlong <- read_excel("Open_NAPs_Database.xlsm",sheet = "countrylatlong")
 NAPATbl <- read_excel("Open_NAPs_Database.xlsm",sheet = "project_database")
 policy_db<-read_excel("Open_NAPs_Database.xlsm",sheet = "Policy_db")
 Measures<-read_excel("Open_NAPs_Database.xlsm",sheet = "Measures")
+iso_cat<-read_excel("Open_NAPs_Database.xlsm",sheet = "country_categories")
+readiness_approval<-read_excel("Open_NAPs_Database.xlsm",sheet = "Readiness_Approval")
+
 ```
 
 
 ```{r merge-tables, include=FALSE}
 
 unregions<-merge(country_codes_un, regions, by='countryname', all.x=TRUE)
+unregions<-merge(unregions,iso_cat, by='countryname', all.x=TRUE)
 napcountry_outputs<-merge(country_codes_un,nap_outputs, by="country-code")
 GEF_Projects<-merge(unregions,GEF, by="countryname", all.y = TRUE)
 GCF_Projects<-merge(unregions,GCF, by="countryname", all.y = TRUE)
-Country_Readiness<-merge(unregions,Readiness, by="countryname", all.y = TRUE)
 NAPCountries<-merge(unregions,NAPS, by="countryname", all.y = TRUE)
 xycountrycode<-merge(unregions,latlong, by='countryname', all.x = TRUE)
 NAP_Countries<-merge(NAPS,xycountrycode, by="countryname", all.x = TRUE)
 NAPA<-merge(NAPATbl,xycountrycode, by="countryname", all.x = TRUE)
 policy<-merge(policy_db,country_codes_un, by="country-code", all.y=TRUE)
+Country_Readiness<-merge(Readiness, xycountrycode, by="countryname", all.x = TRUE)
+GCF_Readiness<-merge(Country_Readiness, readiness_approval, by='countryname', all.x=TRUE)
 
 ```
 
@@ -79,13 +84,18 @@ GEF_Grant <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`count
   summarise("Grant"=sum(`Grant`))
 GEF_Co_Finance <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
   summarise("Total Co-Financing"=sum(`Co-Financing`))
-Readiness_df <- as.data.frame(Country_Readiness)%>% group_by(Region, `Sub_Region`,`countryname`,`Grant Agreement Type`,Activity,`Duration Approved`)%>%   summarise("Amount Approved"=sum(`Amount Approved`),"Amount Disbursed"=sum(`Amount Disbursed`) )
+Readiness_df <- as.data.frame(GCF_Readiness)%>% group_by(Region, `Sub_Region`,`countryname`,`Grant Agreement Type`,Activity,`Duration Approved`, lat, lon,perc_tot)%>%   summarise("Amount Approved"=sum(`Amount Approved`),"Amount Disbursed"=sum(`Amount Disbursed`)) 
 NAPA_df <- as.data.frame(NAPA)%>% group_by(Region, `Sub_Region`,`countryname`,Fund,status)%>%   summarise("Amount Approved"=sum(Amount) )
-NAPA_red<-NAPA_df[-90,]
+Measures$Missing<-154-(Measures$`Developing Countries  (non-LDC)`+Measures$LDCs)
 ```
 
 ```{r edit-summary}
 #rename some columns
+readiness_fund<-GCF_Readiness%>%dplyr::filter(Activity=='Adaptation Planning (AP)')
+readiness_fund<-readiness_fund[,c(1,12,18,19)]
+colnames(readiness_fund)[colnames(readiness_fund)=='Amount Approved']<-'Amount'
+readiness_fund$Fund<-'GCF Readiness'
+
 colnames(GCF_Core)[colnames(GCF_Core)=="Total GCF Funding"]<-"Amount"
 colnames(GEF_Grant)[colnames(GEF_Grant)=="Grant"]<-"Amount"
 colnames(NAPA_df)[colnames(NAPA_df)=="Amount Approved"]<-"Amount"
@@ -98,7 +108,7 @@ GCF_Core$Fund<-'GCF'
 NAPA_New<-NAPA_df[,-5]
 
 # combine all 3 dfs with rbind
-NAP_Fund<-rbind(NAPA_New,GCF_Core,GEF_Grant)
+NAP_Fund<-rbind(NAPA_New,GCF_Core,GEF_Grant,readiness_fund)
 ```
 
 Funding Overview
@@ -121,14 +131,14 @@ valueBox(value = prettyNum(format(gcf_total,big.mark = ","), "", sep = ","),
 ```
 
 
-### GEF {.value-box} 
+### GCF NAP Readiness (AP) {.value-box} 
 
 
 ```{r}
-gef_total<-sum(GEF_Grant$Amount)
+AP_readiness<-sum(readiness_fund$Amount)
 
-valueBox(value = prettyNum(format(gef_total,big.mark = ","), "", sep = ","),
-         caption = "Total GEF Funding", 
+valueBox(value = prettyNum(format(AP_readiness,big.mark = ","), "", sep = ","),
+         caption = "GCF NAP Readiness (AP)", 
          icon = "logo-usd", 
          color = "orange")
 ```
@@ -163,10 +173,6 @@ Column { data-width=250 }
 
 ```{r}
 
-#ggplot(data = GCF_Core, aes(fill=countryname, area=`Total GCF Funding`, label = paste(countryname,"\n",prettyNum(`Total GCF Funding`, big.mark = ","))))+
-  #geom_treemap()+geom_treemap_text(colour='black', place='centre')+
-  #labs(subtitle = 'GCF Projects Funding by Country')+theme(legend.position = 'none')
-
 plot_ly(
   data = GCF_Core,
   type= "treemap",
@@ -179,17 +185,12 @@ plot_ly(
 
 ```
 
-### GEF
+### GCF NAP Readiness (AP)
 
 ```{r}
-#ggplot(data = subset(GEF_Grant,`Grant`>50000000), aes(fill=countryname, area=Grant, label = paste(countryname,"\n",prettyNum(Grant, big.mark = ","))))+
- # geom_treemap()+
-  #geom_treemap_text(colour='black', place='centre')+
-  #labs(subtitle = 'GEF Project Grants by Country')+
-  #theme(legend.position = 'none')
 
 plot_ly(
-  data = GEF_Grant,
+  data = readiness_fund,
   type= "treemap",
   values = ~Amount,
   labels= ~ countryname,
@@ -203,11 +204,6 @@ plot_ly(
 
 ### NAPA
 ```{r echo=FALSE}
-#ggplot(data = NAPA_df, aes(fill=countryname, area=NAPA_df$`Amount Approved`, label = paste(countryname,"\n",prettyNum(`Amount Approved`, big.mark = ","))))+
-  #geom_treemap()+
- # geom_treemap_text(colour='black', place='centre')+
- # labs(subtitle = 'NAPA Funding by Country')+
-  #theme(legend.position = 'none')
 
 plotly::plot_ly(
   data = NAPA_New%>%dplyr::filter(Fund=='LDCF'),
@@ -216,123 +212,150 @@ plotly::plot_ly(
   labels= ~ countryname,
   parents=  ~Fund,
   name = "LDCF",
-  textinfo="label+value+percent parents")%>%
-  
-  plotly::add_trace(
-    data = NAPA_New%>%dplyr::filter(Fund=='GEF Trust Fund'|Fund=='Multi TrustFunds'),
-    type= "treemap",
-    values = ~Amount,
-    labels= ~ countryname,
-    parents=  ~Fund,
-    name = "Other NAPA Funding",
-    textinfo="label+value+percent parents")
+  textinfo="label+value+percent parents")
   
 ```
 
-Funding Overview: Alternative Layout
+GCF NAP Readiness {data-orientation=rows}
 ========================================================================
-{.tabset }
------------------------------------------------------
-### GCF
+Row
+----------------------------------
+### Countries who have accessed GCF Readiness funds
 
 ```{r}
 
-#ggplot(data = GCF_Core, aes(fill=countryname, area=`Total GCF Funding`, label = paste(countryname,"\n",prettyNum(`Total GCF Funding`, big.mark = ","))))+
-  #geom_treemap()+geom_treemap_text(colour='black', place='centre')+
-  #labs(subtitle = 'GCF Projects Funding by Country')+theme(legend.position = 'none')
+Readiness_df<-Readiness_df%>%
+   mutate(popup_info=paste(countryname,"<br>","Amount Approved:","$", (prettyNum(format(`Amount Approved`,big.mark = ","), "", sep = ","))))
 
-plot_ly(
-  data = GCF_Core,
-  type= "treemap",
-  values = ~Amount,
-  labels= ~countryname,
-  parents= ~Fund,
-  name = "GCF Funding",
-  textinfo="label+value+percent parent")
-
+Readiness_df%>%dplyr::filter(Activity=='Adaptation Planning (AP)')%>%
+leaflet()%>%addTiles()%>%addCircleMarkers(fill = T, lat = ~lat, lng = ~lon, color = 'brown', weight = ~perc_tot*10, radius = 4, popup = ~popup_info )
 ```
 
-### GEF
-
-```{r}
-#ggplot(data = subset(GEF_Grant,`Grant`>50000000), aes(fill=countryname, area=Grant, label = paste(countryname,"\n",prettyNum(Grant, big.mark = ","))))+
- # geom_treemap()+
-  #geom_treemap_text(colour='black', place='centre')+
-  #labs(subtitle = 'GEF Project Grants by Country')+
-  #theme(legend.position = 'none')
-
-plot_ly(
-  data = GEF_Grant,
-  type= "treemap",
-  values = ~Amount,
-  labels= ~ countryname,
-  parents=  ~Fund,
-  name = "GEF Funding",
-  textinfo="label+value+percent parent")
+### Projects by Delivery Partner
  
-```
-
-### NAPA
-
-```{r echo=FALSE}
-#ggplot(data = NAPA_df, aes(fill=countryname, area=NAPA_df$`Amount Approved`, label = paste(countryname,"\n",prettyNum(`Amount Approved`, big.mark = ","))))+
-  #geom_treemap()+
- # geom_treemap_text(colour='black', place='centre')+
- # labs(subtitle = 'NAPA Funding by Country')+
-  #theme(legend.position = 'none')
-
-plotly::plot_ly(
-  data = NAPA_New%>%dplyr::filter(Fund=='LDCF'),
-  type= "treemap",
-  values = ~Amount,
-  labels= ~ countryname,
-  parents=  ~Fund,
-   
-  name = "NAPA Funding",
-  textinfo="label+value+percent parents")%>%
+ 
+```{r}
+library(stringr)
+GCF_Readiness%>%dplyr::filter(Activity=='Adaptation Planning (AP)')%>%
+  group_by(`Delivery Partner`)%>%count('Request ID')%>%
+  summarise("Projects"=sum(n))%>%
   
-  plotly::add_trace(
-    data = NAPA_New%>%dplyr::filter(Fund=='GEF Trust Fund'|Fund=='Multi TrustFunds'),
-    type= "treemap",
-    values = ~Amount,
-    labels= ~ countryname,
-    parents=  ~Fund,
-    name = "Other Funding",
-    textinfo="label+value+percent parents")
+  plot_ly(type = 'bar',
+          x=~Projects,
+          y=~`Delivery Partner`
+         
+  )
+
   
 ```
 
-Readiness
-========================================================================
-
-### Projects by Region
+Row
+---------------------------------------------
+### Projects by Geographical Region
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-proj<-Country_Readiness %>% group_by(Region)%>%count(`Request ID`)
-
- proj%>% summarise("Projects"=sum(n))%>%
+GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>%group_by(Region)%>%count(`Request ID`)%>%
+summarise("Projects"=sum(n))%>%
   plot_ly(type = "bar", 
           x =~Projects, 
           y =~Region)
+
 ```
 
-### Amount Approved by Country
+### Projects by country category
 
-```{r,echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-#Element_short<-paste(substr(mdf$Element,1,1),':-')
+GCF_Readiness %>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>% group_by(Category)%>%count(`Request ID`)%>%
+summarise("Projects"=sum(n))%>%
+  plot_ly(type = "bar", 
+          x =~Projects, 
+          y=~Category)
+```
 
-Readiness_df%>%arrange()%>%
-   plot_ly(type = "bar", 
-          x = Readiness_df$`Amount Approved`, 
-          y = paste(substr(Readiness_df$countryname,1,20),'...'),
-          name='Amount Approved')%>%
+GCF Regional summaries {data-orientation=rows}
+=================================================================
+Row
+-----------------------
+### NAP Readiness Countries
+
+```{r}
+readiness_fund%>%group_by(Region)%>% count(countryname)%>%
+  summarise("Countries"=sum(n))%>%
+  plot_ly(
+    x=~Countries,
+    y=~Region
+  )
+
+```
+
+### NAP Readiness Amount
+
+```{r}
+readiness_fund%>%group_by(Region)%>%summarise("Amount"=sum(Amount))%>%
+  plot_ly(
+          type = "bar", 
+          y =~Region, 
+          x =~Amount
+        )
+```
+Row
+--------------------------------------
+### Full Project Countries
+
+```{r}
+GCF_Core%>%group_by(Region)%>% count(countryname)%>%summarise("Countries"=sum(n))%>%
+plot_ly(
+          type = "bar", 
+          y =~Region, 
+          x =~Countries
+        )
+```
+
+### Full Project Amounts
+
+```{r}
+
+GCF_Core%>%group_by(Region)%>%summarise("Amount"=sum(Amount))%>%
+plot_ly(
+          type = "bar", 
+          y =~Region, 
+          x =~Amount
+        )
+```
+
+Approval Timeline
+=======================================
+
+### No. of approvals by year
+
+```{r}
+GCF_Readiness$`Year Approved`<-substr(GCF_Readiness$Approval, 1,4)
+GCF_Readiness%>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>%na.omit%>%group_by(countryname,`Year Approved`)%>%count(countryname)%>%
+  summarise("Countries"=sum(n))%>%
+plot_ly(
+  type = 'bar',
+        x=~`Year Approved`,
+        y=~Countries,
+        text=~countryname,
+  textposition='auto'
   
-  add_trace(x=Readiness_df$`Amount Disbursed`, 
-            name='Amount Disbursed'
+  )
+```
 
-                   )
+### Time taken to approve funding
+
+```{r}
+GCF_Readiness$`Time-to-approve (Months)`<-round(GCF_Readiness$`Time-to-approve (Months)`, digits = 0)
+GCF_Readiness%>% dplyr::filter(Activity=='Adaptation Planning (AP)')%>%na.omit%>%group_by(`Time-to-approve (Months)`)%>%count(countryname)%>%
+  summarise("Countries"=sum(n))%>%
+plot_ly(type = 'bar',
+        x=~`Time-to-approve (Months)`,
+        y=~Countries
+        
+        )
+
 ```
 
 
@@ -340,6 +363,30 @@ Outputs
 ========================================================================
 {.tabset .tabset-fade}
 -------------------------------------
+
+### Measures to formulate NAPS
+
+```{r}
+
+mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
+
+#Element_short<-paste(substr(mdf$Element,1,1),':-')
+
+mdf$Measure<-factor(mdf$Measure,levels = c('D:-Iteratively updating NAPs','D:-Monitoring and periodically reviewing the pro','D:-Communicating progress on NAPs','D:-Designing and applying a monitoring and evalu','C:-Implementing and managing actions in NAPs to','C:-Designing coherent NAP implementation strateg','C:-Prioritizing climate change adaptation in nat','B:-Publishing NAPs and submitting them to NAP Ce','B:-Compiling draft NAPs for consultation and end','B:-Appraising, prioritizing and ranking adaptati','B:-Identifying adaptation options to address key','B:-Undertaking activities on integrating adaptat','B:-Comprehensively assessing climate vulnerabili','B:-Analysing past climate data and scenarios of','A:-Publishing the road map for the process','A:-Developing a road map for the process','A:-Synthesizing available adaptation information','A:-Consulting stakeholders for input and validat','A:-Defining institutional arrangements and a coo','A:-Formulating a mandate for the process','A:-Receiving approval from the GCF Readiness and','A:-Submitting proposals to the GCF Readiness and','A:-Initiating and/or launching the process'
+
+))
+
+mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
+    geom_bar(stat = 'identity',position="stack") + 
+    ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
+    xlab('Measure') + 
+    ylab('No. of countries') + 
+    coord_flip() + 
+     theme_classic()
+plotly::ggplotly(mplot)
+
+```
+
 ### NAP Outputs
 
 ```{r, echo=FALSE, warning=FALSE,message=FALSE}
@@ -349,7 +396,7 @@ napcountry_outputs$Doctitle<-paste('<a href=',napcountry_outputs$weblink, '>',na
 colnames(napcountry_outputs)[colnames(napcountry_outputs)=='countryname']<-'Country'
 colnames(napcountry_outputs)[colnames(napcountry_outputs)=='Doctitle']<-'Document Title'
 
-y<-napcountry_outputs[,c(2,5,7,12)]
+y<-napcountry_outputs[,c(2,4,7,12)]
 datatable(y,escape = FALSE, filter = 'top',fillContainer = T,rownames = F, editable = F, style = 'jqueryui', class = 'display responsive', width = '100%', caption = "NAP Output Documents", extensions = 'Buttons', options=list(initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '70%'});}"),pageLength= 10, dom='lfrtipB', buttons = c('copy', 'csv', 'excel', 'pdf')))%>%
   DT::formatStyle(columns = colnames(y),fontSize= '12px')
 
@@ -369,25 +416,6 @@ datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style =
 
 ```
 
-### Measures to formulate NAPS
-
-```{R}
-
-mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
-#Element_short<-paste(substr(mdf$Element,1,1),':-')
-
-mdf$Measure<-factor(mdf$Measure,levels = c('A:-Initiating and/or launching the process','A:-Submitting proposals to the GCF Readiness and','A:-Receiving approval from the GCF Readiness and','A:-Formulating a mandate for the process','A:-Defining institutional arrangements and a coo','A:-Consulting stakeholders for input and validat','A:-Synthesizing available adaptation information','A:-Developing a road map for the process','A:-Publishing the road map for the process','B:-Analysing past climate data and scenarios of','B:-Comprehensively assessing climate vulnerabili','B:-Undertaking activities on integrating adaptat','B:-Identifying adaptation options to address key','B:-Appraising, prioritizing and ranking adaptati','B:-Compiling draft NAPs for consultation and end','B:-Publishing NAPs and submitting them to NAP Ce','C:-Prioritizing climate change adaptation in nat','C:-Designing coherent NAP implementation strateg','C:-Implementing and managing actions in NAPs to','D:-Designing and applying a monitoring and evalu','D:-Communicating progress on NAPs','D:-Monitoring and periodically reviewing the pro','D:-Iteratively updating NAPs'))
-
-mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
-    geom_bar(stat = 'identity',position="stack") + 
-    ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
-    xlab('Measure') + 
-    ylab('No. of countries') + 
-    coord_flip() + 
-     theme_classic()
-plotly::ggplotly(mplot)
-
-```
 
 Maps 
 ========================================================================
@@ -404,6 +432,10 @@ NAP_Countries<-NAP_Countries%>%
 
 leaflet(NAP_Countries)%>%
   addTiles()%>%
+  addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
+ 
+leaflet(NAP_Countries)%>%
+  addProviderTiles("CartoDB.Voyager")%>%
   addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
  
 ```
