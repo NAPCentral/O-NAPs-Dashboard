@@ -410,7 +410,7 @@ datatable(p,filter = 'top',fillContainer = T,rownames = F, editable = F, style =
 
 ```{r}
 
-mdf<-as.data.frame(Measures[,-2])%>%reshape::melt(id.vars=c('Element', 'Measure'))
+mdf<-as.data.frame(Measures[,-3])%>%reshape::melt(id.vars=c('Element','Metric', 'Measure'))
 
 #Element_short<-paste(substr(mdf$Element,1,1),':-')
 
@@ -419,13 +419,17 @@ mdf$Measure<-factor(mdf$Measure,levels = c('D:-Iteratively updating NAPs','D:-Mo
 ))
 
 mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
-    geom_bar(stat = 'identity',position="stack") + 
+    geom_bar(aes(group=Metric), stat = 'identity',position="stack") + 
     ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
     xlab('Measure') + 
     ylab('No. of countries') + 
+  scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
+  #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
     coord_flip() + 
-     theme_classic()
+     theme(legend.position = 'top', legend.box = 'horizontal')+theme_classic()
 plotly::ggplotly(mplot)
+
+
 
 ```
 
