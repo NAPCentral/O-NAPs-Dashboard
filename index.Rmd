@@ -426,7 +426,8 @@ mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) +
   scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
   #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
     coord_flip() + 
-     theme(legend.position = 'top', legend.box = 'horizontal')+theme_classic()
+     theme(legend.position = 'bottom', legend.box = 'horizontal')+
+     theme_classic()
 plotly::ggplotly(mplot)
 
 
