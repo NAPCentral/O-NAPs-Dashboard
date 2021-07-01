@@ -126,9 +126,9 @@ Column { data-width=50 }
 gcf_total<-sum(GCF_Core$Amount)
 
 valueBox(value = prettyNum(format(gcf_total,big.mark = ","), "", sep = ","),
-         caption = "Total GCF Funding", 
+         caption = "GCF Full-Project Funding", 
          icon = "logo-usd", 
-         color = "brown")
+         color = "#357C9F")
 ```
 
 
@@ -447,13 +447,14 @@ NAP_Countries$`Document title`<-paste('<a href=',NAP_Countries$Link, '>',NAP_Cou
 NAP_Countries<-NAP_Countries%>%
    mutate(popup_info=paste(countryname,"<br>","Submitted on:",NAP_Countries$`Date of submission`,"<br>","Title:",NAP_Countries$`Document title`))
 
-leaflet(NAP_Countries)%>%
+leaflet(NAP_Countries)%>%setView(lng= 35.79, lat= -9.12 , zoom = 2)%>%
   addTiles()%>%
-  addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
+  addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = 6, color='red', popup =~popup_info)
  
-leaflet(NAP_Countries)%>%
-  addProviderTiles("CartoDB.Voyager")%>%
-  addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
+
+#leaflet(NAP_Countries)%>%setView(lng= 35.79, lat= -9.12 , zoom = 2)%>%
+  #addProviderTiles("CartoDB.Voyager")%>%
+  #addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = ~4,popup =~popup_info)
  
 ```
 
