@@ -419,16 +419,16 @@ mdf$Measure<-factor(mdf$Measure,levels = c('D:-Iteratively updating NAPs','D:-Mo
 ))
 
 mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) + 
-    geom_bar(aes(group=Metric), stat = 'identity',position="stack") + 
+    geom_bar(aes(group=Metric), stat = 'identity', position="stack") + 
     ggtitle('Measures undertaken in developing country Parties in the process to formulate and implement national adaptation plans as at 24 February 2021') + 
     xlab('Measure') + 
     ylab('No. of countries') + 
   scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
   #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
     coord_flip() + 
-     theme(legend.position = 'top', legend.box = 'horizontal')+theme_classic()
-plotly::ggplotly(mplot)
-
+  theme_classic()
+plotly::ggplotly(mplot)%>%
+  layout(legend=list(orientation='h', y=-0.15,x=0), yaxis=list(showticklables=TRUE))
 
 
 ```
