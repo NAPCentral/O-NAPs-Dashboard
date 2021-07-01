@@ -426,16 +426,9 @@ mplot<- ggplot(mdf, aes(x = Measure , y = value, fill = variable)) +
   scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
   #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
     coord_flip() + 
-<<<<<<< HEAD
   theme_classic()
 plotly::ggplotly(mplot)%>%
   layout(legend=list(orientation='h', y=-0.15,x=0), yaxis=list(showticklables=TRUE))
-=======
-     theme_classic()
-plotly::ggplotly(mplot)%>%
-  layout(legend=list(orientation='h', y=0,x=0))
-
->>>>>>> 25967419e6afacc82f3f52638d684b70ac45a16b
 
 
 ```
