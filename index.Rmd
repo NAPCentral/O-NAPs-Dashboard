@@ -33,6 +33,8 @@ library(timeSeries)
 library(xts)
 library(wbstats)
 library(FAOSTAT)
+library(highcharter)
+library(plotme)
 
 ```
 
@@ -40,6 +42,7 @@ library(FAOSTAT)
 ```{r excel-data, include=FALSE}
 country_codes_un <- read_excel("Open_NAPs_Database.xlsm",sheet = "country_codes_un")
 regions <- read_excel("Open_NAPs_Database.xlsm", sheet = "UNCTAD_Regions")
+iso_cat<-read_excel("Open_NAPs_Database.xlsm",sheet = "country_categories")
 nap_outputs <- read_excel("Open_NAPs_Database.xlsm",sheet = "nap_output_docs")
 Readiness<- read_excel("Open_NAPs_Database.xlsm",sheet = "Readiness")
 GEF <- read_excel("Open_NAPs_Database.xlsm",sheet = "GEF")%>%na.omit()
@@ -49,8 +52,8 @@ latlong <- read_excel("Open_NAPs_Database.xlsm",sheet = "countrylatlong")
 NAPATbl <- read_excel("Open_NAPs_Database.xlsm",sheet = "project_database")
 policy_db<-read_excel("Open_NAPs_Database.xlsm",sheet = "Policy_db")
 Measures<-read_excel("Open_NAPs_Database.xlsm",sheet = "Measures")
-iso_cat<-read_excel("Open_NAPs_Database.xlsm",sheet = "country_categories")
 readiness_approval<-read_excel("Open_NAPs_Database.xlsm",sheet = "Readiness_Approval")
+GCF_accessed <- read_excel("Open_NAPs_Database.xlsm",sheet = "GCF_Accessed")
 
 ```
 
@@ -70,6 +73,7 @@ policy<-merge(policy_db,country_codes_un, by="country-code", all.y=TRUE)
 Country_Readiness<-merge(Readiness, xycountrycode, by="countryname", all.x = TRUE)
 GCF_Readiness<-merge(Country_Readiness, readiness_approval, by='countryname', all.x=TRUE)
 GCF_Readiness<-as.data.frame(GCF_Readiness, stringsAsFactors = FALSE)
+GCF_resource<-merge(GCF_accessed,unregions, by='countryname', all.x=TRUE)
 
 ```
 
@@ -77,10 +81,9 @@ GCF_Readiness<-as.data.frame(GCF_Readiness, stringsAsFactors = FALSE)
 ```{r summary,include=FALSE}
 
 GCF_Core <- as.data.frame(GCF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
-  summarise("Total GCF Funding"=sum(`Total GCF Funding`))#%>%
-      #tidyr::pivot_wider(names_from = "countryname", values_from ="Total GCF Funding")
+  summarise("Total GCF Funding"=sum(`Total GCF Funding`))%>%na.omit()
 GCF_Co_Finance <- as.data.frame(GCF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
-  summarise("Total Co-Financing"=sum(`Total Co-Financing`))
+  summarise("Total Co-Financing"=sum(`Total Co-Financing`))%>%na.omit()
 GEF_Grant <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
   summarise("Grant"=sum(`Grant`))
 GEF_Co_Finance <- as.data.frame(GEF_Projects)%>% group_by(Region, `Sub_Region`,`countryname`)%>% 
@@ -109,7 +112,7 @@ GCF_Core$Fund<-'GCF'
 NAPA_New<-NAPA_df[,-5]
 
 # combine all 3 dfs with rbind
-NAP_Fund<-rbind(NAPA_New,GCF_Core,GEF_Grant,readiness_fund)
+NAP_Fund<-rbind(NAPA_New,GCF_Core,readiness_fund)
 ```
 
 Funding Overview
@@ -186,6 +189,7 @@ plot_ly(
 
 ```
 
+
 ### GCF NAP Readiness (AP)
 
 ```{r}
@@ -195,13 +199,12 @@ plot_ly(
   type= "treemap",
   values = ~Amount,
   labels= ~ countryname,
-  parents=  ~Fund,
+  parents=~Fund,
+
   name = "GEF Funding",
   textinfo="label+value+percent parent")
  
 ```
-
------------------------------------------------------------------------
 
 ### NAPA
 ```{r echo=FALSE}
@@ -216,6 +219,70 @@ plotly::plot_ly(
   textinfo="label+value+percent parents")
   
 ```
+
+
+Funding 2 {data-orientation=columns}
+========================================================================
+{.tabset }
+-------------------------------------
+
+### Combined overview
+
+```{r}
+NAP_Fund[,-2]%>%data_to_hierarchical(c(Fund,Region,countryname),Amount)%>%
+  hchart(type='sunburst')
+```
+
+### Countries only
+
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+
+```{r}
+#devtools::install_github("yogevherz/plotme")
+
+NAP_Fund[,-c(2,4)] %>% 
+  count(Region,countryname,wt=Amount)%>%
+  count_to_sunburst(fill_by_n = F)
+```
+
+</div>
+
+<div>
+
+```{r}
+NAP_Fund[,-c(2,4)] %>% 
+  count(Region,countryname,wt=Amount)%>%
+  count_to_treemap(fill_by_n = F)
+```
+</div>
+
+</div>
+
+### Country & Fund
+
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+```{r}
+NAP_Fund[,-2] %>% 
+  count(Fund,Region,countryname,wt=Amount)%>%
+  count_to_treemap(fill_by_n = F)
+```
+
+</div>
+
+<div>
+
+```{r}
+NAP_Fund[,-2] %>% 
+  count(Fund,countryname,wt=Amount)%>%
+  count_to_sunburst(fill_by_n = F)
+```
+</div>
+
+</div>
 
 GCF NAP Readiness {data-orientation=rows}
 ========================================================================
@@ -286,6 +353,182 @@ cat$Category <- factor(cat$Category, levels = unique(cat$Category)[order(cat$Pro
           x =~Projects, 
           y=~Category)
 ```
+
+GCF -new 
+========================================================================
+Column {.tabset}
+-------------------------------------
+
+
+### GCF Total by Country Category
+
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+
+```{r}
+GCF_accessed <- read_excel("Open_NAPs_Database.xlsm",sheet = "GCF_Accessed")
+
+GCF_Tot<-GCF_accessed%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(`Country Category`)%>%summarise('Total'=sum(`Grand Total`))
+
+GCF_Tot$`Country Category` <- factor(GCF_Tot$`Country Category`, levels = unique(GCF_Tot$`Country Category`)[order(GCF_Tot$Total, decreasing = TRUE)]) 
+
+  plot_ly(data=GCF_Tot, type='bar', 
+          y=~`Country Category`,
+          x=~Total)%>%
+    plotly::layout(title='Total GCF Amount by Country Category', yaxis=list(title='Country Category'), xaxis=list(title='Total Amount (usd)'))
+
+
+```
+</div>
+
+<div>
+  
+
+```{r}
+Ready<-GCF_accessed%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(`Country Category`)%>%summarise('Readiness'=sum(`Readiness support approved`))
+
+Ready$`Country Category` <- factor(Ready$`Country Category`, levels = unique(Ready$`Country Category`)[order(Ready$Readiness, decreasing = TRUE)])
+
+plot_ly(data=Ready, type='bar', 
+          y=~`Country Category`,
+          x=~Readiness)%>%
+    plotly::layout(title='Readiness Amount Approved - by Country Category',yaxis=list(title='Country Category'), xaxis=list(title='Readiness Amount Approved (usd)'))
+
+```
+</div>
+
+</div>
+
+### By Region
+
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+
+```{r}
+GCF_reg<-GCF_resource%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(Region)%>%summarise('Total'=sum(`Grand Total`))
+
+GCF_reg$Region <- factor(GCF_reg$Region, levels = unique(GCF_reg$Region)[order(GCF_reg$Total, decreasing = TRUE)])
+
+  plot_ly(data=GCF_reg, type='bar', 
+          y=~Region,
+          x=~Total)%>%
+    plotly::layout(title='Total GCF Amount Approved - by Region',yaxis=list(title='Region'), xaxis=list(title='Total Amount (usd)'))
+```
+</div>
+
+<div>
+  
+```{r}
+red_reg<-GCF_resource%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(Region)%>%summarise('Total'=sum(`Readiness support approved`))
+
+red_reg$Region <- factor(red_reg$Region, levels = unique(red_reg$Region)[order(red_reg$Total, decreasing = TRUE)])
+
+  plot_ly(data=red_reg, type='bar', 
+          y=~Region,
+          x=~Total)%>%
+    plotly::layout(title='Readiness Amount Approved - by Region',yaxis=list(title='Region', showticklabels=T), xaxis=list(title='Readiness Amount Approved (usd)'))
+```
+</div>
+
+</div>
+### By Country
+  
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+
+```{r}
+
+country_tot<-GCF_accessed%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(countryname)%>%summarise('Total'=sum(`Grand Total`))
+
+country_tot$countryname <- factor(country_tot$countryname, levels = unique(country_tot$countryname)[order(country_tot$Total, decreasing = TRUE)])
+
+  plot_ly(data=country_tot, type='bar', 
+          y=~countryname,
+          x=~Total)%>%plotly::layout(title='Total GCF Amount Approved - by Country',yaxis=list(title='Country'), xaxis=list(title='Total Amount (usd)'))
+```
+
+</div>
+
+<div>
+  
+```{r}
+
+country_red<-GCF_accessed%>%dplyr::filter(`Grand Total`>0.0)%>%group_by(countryname)%>%summarise('Total'=sum(`Readiness support approved`))
+
+country_red$countryname <- factor(country_red$countryname, levels = unique(country_red$countryname)[order(country_red$Total, decreasing = TRUE)])
+
+  plot_ly(data=country_red, type='bar', 
+          y=~countryname,
+          x=~Total)%>%
+    plotly::layout(title='Readiness Amount Approved - by Country',yaxis=list(title='Country'), xaxis=list(title='Readiness Amount Approved(usd)'))
+```
+</div>
+
+</div>
+### Readiness& Actual GCF
+
+<div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
+
+<div>
+
+```{r}
+df<-GCF_accessed[,-c(2:7)]%>%pivot_longer(-countryname, values_to = 'Amount', names_to = 'Type')
+
+df2<-GCF_resource%>%dplyr::filter(`Grand Total`>0.0)
+df2<-df2[,c(1,6,8,9,12)]%>%reshape::melt(id.var=c('countryname','Region','Country Category'))
+
+df2<-df2%>%group_by(Region,variable)%>% summarise('value'=sum(value))
+
+df2$Region <- factor(df2$Region, levels = c('Asia','Sub-Saharan Africa', 'Latin America and the Caribbean','Northern Africa','Oceania','Southern Europe','Eastern Europe'))
+
+
+p<- ggplot(df2,aes(x = value , y = Region, fill = variable)) + 
+    geom_bar(aes(group=variable), stat = 'identity', position="stack") + 
+    ggtitle('GCF Financing Streams by Region') + 
+    xlab('Amount (usd)') + 
+    ylab('Region') + 
+  scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
+  #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
+    #coord_flip() + 
+  theme_classic()
+plotly::ggplotly(p)%>%
+  layout(legend=list(orientation='h', y=-0.15,x=0), yaxis=list(showticklables=TRUE))
+
+
+```
+</div>
+
+<div>
+  
+```{r}
+df2<-GCF_resource%>%dplyr::filter(`Grand Total`>0.0)
+#df<-GCF_accessed[,-c(2:7)]%>%pivot_longer(-countryname, values_to = 'Amount', names_to = 'Type')
+df2<-df2[,c(1,6,8,9,12)]%>%reshape::melt(id.var=c('countryname','Region','Country Category'))
+
+
+df2<-df2%>%group_by(`Country Category`,variable)%>% summarise('value'=sum(value))
+
+df2$`Country Category`<- factor(df2$`Country Category`,levels = c('Other DC','LLDC','LDC','LDC, LLDC','SIDS','LDC, SIDS'))
+
+#df2%>%group_by(Region,variable)%>% summarise('Amount'=sum(value))%>%
+p<- ggplot(df2,aes(x = value , y = `Country Category`, fill = variable)) + 
+    geom_bar(aes(group=variable), stat = 'identity', position="stack") + 
+    ggtitle('GCF Financing Streams by Country Category') + 
+    xlab('Amount (usd)') + 
+    ylab('Country Category') + 
+  scale_fill_manual(values=c("#357C9F",  "orange", "#f4dbb0")) +
+  #scale_colour_manual(values = c("royalblue", "navyblue", "black")) +
+    #coord_flip() + 
+  theme_classic()
+plotly::ggplotly(p)%>%
+  layout(legend=list(orientation='h', y=-0.15,x=0), yaxis=list(showticklables=TRUE))
+```
+</div>
+
+</div>
 
 GCF Regional summaries {data-orientation=rows}
 =================================================================
@@ -447,7 +690,7 @@ NAP_Countries$`Document title`<-paste('<a href=',NAP_Countries$Link, '>',NAP_Cou
 NAP_Countries<-NAP_Countries%>%
    mutate(popup_info=paste(countryname,"<br>","Submitted on:",NAP_Countries$`Date of submission`,"<br>","Title:",NAP_Countries$`Document title`))
 
-leaflet(NAP_Countries)%>%setView(lng= 35.79, lat= -9.12 , zoom = 2)%>%
+leaflet(NAP_Countries)%>%setView(lng= 35.79, lat= -9.12 , zoom = 2.3)%>%
   addTiles()%>%
   addCircleMarkers(data=NAP_Countries, fill=T,lng=~lon, lat =~lat, radius = 6, color='red', popup =~popup_info)
  
@@ -486,7 +729,7 @@ Map$addLayer(
     bands = c("scale", "offset", "scale"),
     min = 0,
     max = c(0.18,20,0.18)),
-  name = "Malawi Landcover", legend = TRUE)+
+  name = "Malawi Landcover")+
   Map$addLayer(malawi,{},'Malawi Districts',opacity = 0.3, TRUE)
 
 ```
@@ -514,6 +757,8 @@ TmaxAfrica<-ee_extract(x=Tmax, y=Africa_Trace, fun=ee$Reducer$mean())
 Tmaxlong<-pivot_longer(TmaxAfrica,everything(),names_to = 'month',values_to = 'tmax')
 Date<-seq(as.Date('1958-01-01'), by="month", length.out=757)
 Tmaxlong$Date<-Date
+
+Tmaxlong$tmax<-Tmaxlong$tmax*0.1 #gain is 0.1
  
 
 tmax_ann<-Tmaxlong%>%mutate(year=year(Date), month=month(Date))%>%
@@ -640,7 +885,7 @@ Data source: [FAOSTAT](http://www.fao.org/faostat/en/#data)
 ```{r, echo=FALSE}
 data_folder <- "FAOSTATs"
 dir.create(data_folder)
-production_crops <- get_faostat_bulk(code = "QC", data_folder = data_folder)
+production_crops <- get_faostat_bulk(code = "QCL", data_folder = data_folder)
 #saveRDS(production_crops, "FAOSTATs/production_crops_e_all_data.rds")
 #production_crops <- readRDS("FAOSTATs/production_crops_e_all_data.rds")
 ```
