@@ -234,6 +234,7 @@ NAP_Fund[,-2]%>%data_to_hierarchical(c(Fund,Region,countryname),Amount)%>%
 ```
 
 ### Countries only
+  >Interactive! - click on a region/country to display different views
 
 <div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
 
@@ -261,6 +262,7 @@ NAP_Fund[,-c(2,4)] %>%
 </div>
 
 ### Country & Fund
+>Interactive! - click on a region/country/fund to display different views
 
 <div style='display:flex; flex-direction:row; justify-content:space-evenly; align-items:center;'>
 
